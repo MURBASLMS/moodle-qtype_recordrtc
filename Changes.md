@@ -1,11 +1,26 @@
 # Change log for the Record audio and video question type
 
+## Changes in 2.0+mu3 (combined, MURBASLMS fork)
+* Combines mu1 (upload status banner) and mu2 (block quiz navigation during upload) for
+  combined testing. See https://github.com/MURBASLMS/moodle-qtype_recordrtc.
+
 ## Changes in 2.0+mu1 (MURBASLMS fork)
 * Add a prominent, accessible upload/save status banner next to the record button while a
   recording is being encoded/uploaded, in addition to the existing button-label text. This is
   a stopgap fix for students clicking "Next" in a Moodle Quiz before their recording has
   finished saving, since the button-label-only feedback was easy to miss during a timed
-  assessment. See https://github.com/MURBASLMS/moodle-qtype_recordrtc.
+  assessment.
+
+## Changes in 2.0+mu2 (MURBASLMS fork)
+* Disable the quiz's own Next/Previous/Finish attempt buttons and question navigation
+  block while a recording is still being encoded/uploaded, re-enabling them once every
+  recordrtc widget on the page has finished saving. Also arms a beforeunload warning for
+  the same window. This is the second half of the stopgap started in 2.0+mu1 (the upload
+  status banner): the banner tells the student not to navigate away, this actually stops
+  them from doing it by accident.
+* Fixed a related bug in handleUploadReadyStateChanged(): the 'Moodle sends back errors
+  with a 200 status code' branch fell through into the success-handling branch afterwards
+  (both would run), which would have double-counted the new in-flight-upload tracker.
 
 ## Changes in 2.0
 * This version is compatible with Moodle 5.0.
