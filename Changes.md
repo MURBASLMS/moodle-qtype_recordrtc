@@ -1,5 +1,17 @@
 # Change log for the Record audio and video question type
 
+## Changes in 2.0+mu6 (MURBASLMS fork)
+* Fix the real cause of the "multiple upload-status messages piling up" bug on audio
+  questions: the banner was anchored to `button.parentElement`, but only the video/screen
+  templates wrap the main button in its own `<span>` - the audio template does not, so
+  `button.parentElement` was the *outer widget* itself. Inserting the banner 'afterend' of
+  that placed it as a sibling of the whole widget, outside the subtree the lookup function
+  searches, so it could never find its own previously-created element on audio widgets and
+  created a brand new orphaned one on every single progress update. Anchored to the button
+  itself instead, which works for all three widget types regardless of nesting depth. The
+  mu4 wording fix (converting vs uploading) was real and still correct, but did not address
+  this - the duplicate-element bug was a separate, deeper issue uncovered by the same report.
+
 ## Changes in 2.0+mu4 (MURBASLMS fork)
 * Fix confusing upload-status banner wording for audio questions: the MP3-conversion
   phase and the actual network upload phase were both shown with the same message, so
