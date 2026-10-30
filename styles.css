@@ -55,3 +55,10 @@ body#page-question-type-recordrtc.path-question-type .form-group[data-groupname=
     color: #000;
     z-index: 1;
 }
+
+/* Applied to #mod_quiz_navblock while a recording is still being saved, so Next/Finish
+   attempt and the question navigation links are visibly (and functionally) blocked. */
+.qtype_recordrtc-navigation-disabled {
+    opacity: 0.6;
+    pointer-events: none;
+}

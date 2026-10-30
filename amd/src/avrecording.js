@@ -58,6 +58,113 @@ function checkCanWork() {
 }
 
 /**
+ * @type {number} Count of recordrtc uploads currently in flight anywhere on this page.
+ *
+ * There can be more than one recordrtc widget on a single quiz page (e.g. one
+ * video 'identity check' question and a separate audio question later in the
+ * same attempt). Page-level navigation must stay blocked until *all* of them
+ * have finished saving, not just the one the student just stopped recording.
+ */
+let activeUploadsCount = 0;
+
+/**
+ * @type {boolean} whether the beforeunload warning is currently armed.
+ */
+let beforeUnloadArmed = false;
+
+/**
+ * @type {boolean} whether the question-navigation block click-interceptor is attached.
+ */
+let navBlockInterceptorAttached = false;
+
+/**
+ * Record that an upload has started, disabling page navigation and arming the
+ * beforeunload warning if this is the first upload currently in flight.
+ */
+function uploadStarted() {
+    activeUploadsCount++;
+    if (activeUploadsCount === 1) {
+        setPageNavigationDisabled(true);
+        window.addEventListener('beforeunload', warnBeforeUnload);
+        beforeUnloadArmed = true;
+    }
+}
+
+/**
+ * Record that an upload has finished (however it ended), re-enabling page
+ * navigation and disarming the beforeunload warning once no uploads remain.
+ */
+function uploadFinished() {
+    activeUploadsCount = Math.max(0, activeUploadsCount - 1);
+    if (activeUploadsCount === 0) {
+        setPageNavigationDisabled(false);
+        if (beforeUnloadArmed) {
+            window.removeEventListener('beforeunload', warnBeforeUnload);
+            beforeUnloadArmed = false;
+        }
+    }
+}
+
+/**
+ * beforeunload handler. Most browsers require preventDefault() plus a (now
+ * ignored, but still required for compatibility) returnValue/return to show
+ * their own native 'leave site?' style confirmation.
+ *
+ * @param {BeforeUnloadEvent} e
+ * @returns {string}
+ */
+function warnBeforeUnload(e) {
+    e.preventDefault();
+    e.returnValue = '';
+    return '';
+}
+
+/**
+ * Intercept clicks on the quiz's question-navigation block (the sidebar of
+ * links to jump between questions) while an upload is in flight, since those
+ * links submit the attempt form just like the Next/Finish buttons do.
+ *
+ * @param {MouseEvent} e
+ */
+function navBlockClickInterceptor(e) {
+    if (e.target.closest('a.qnbutton')) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+}
+
+/**
+ * Disable (or re-enable) the quiz page's own navigation while a recording is
+ * still being saved: the Next/Previous/Finish attempt/Save buttons (all are
+ * submit buttons inside the attempt form), and the question navigation block.
+ *
+ * This is deliberately broader than the existing disableAllButtons(), which
+ * only ever touched other .que.recordrtc widgets, not the quiz page itself -
+ * leaving students free to navigate away before their recording had finished
+ * uploading, with nothing but a button-label percentage as a warning.
+ *
+ * @param {boolean} disabled
+ */
+function setPageNavigationDisabled(disabled) {
+    document.querySelectorAll('#responseform button[type="submit"], #responseform input[type="submit"]')
+        .forEach(button => {
+            button.disabled = disabled;
+        });
+
+    const navBlock = document.getElementById('mod_quiz_navblock');
+    if (navBlock) {
+        navBlock.classList.toggle('qtype_recordrtc-navigation-disabled', disabled);
+        if (disabled && !navBlockInterceptorAttached) {
+            navBlock.addEventListener('click', navBlockClickInterceptor, true);
+            navBlockInterceptorAttached = true;
+        } else if (!disabled && navBlockInterceptorAttached) {
+            navBlock.removeEventListener('click', navBlockClickInterceptor, true);
+            navBlockInterceptorAttached = false;
+        }
+    }
+}
+
+/**
  * Object for actually doing the recording.
  *
  * The recorder can be in one of several states, which is stored in a data-state
@@ -704,6 +811,8 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
      * Trigger the upload of the recorded media back to Moodle.
      */
     async function uploadMediaToServer() {
+        disableAllButtons();
+        uploadStarted();
         setButtonLabel('uploadpreparing');
 
         if (widget.dataset.convertToMp3) {
@@ -877,6 +986,7 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
         const response = JSON.parse(uploadRequest.responseText);
         if (response.errorcode) {
             handleUploadError(); // Moodle sends back errors with a 200 status code for some reason!
+            return;
         }
 
         if (uploadRequest.status === 200) {
@@ -884,9 +994,11 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
             setButtonLabel('recordagainx');
             button.classList.remove('btn-outline-danger');
             enableAllButtons();
+            uploadFinished();
         } else if (uploadRequest.status === 404) {
             setPlaceholderMessage('uploadfailed404');
             enableAllButtons();
+            uploadFinished();
         }
     }
 
@@ -904,6 +1016,7 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
     function handleUploadError() {
         setPlaceholderMessage('uploadfailed');
         enableAllButtons();
+        uploadFinished();
     }
 
     /**
@@ -912,6 +1025,7 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
     function handleUploadAbort() {
         setPlaceholderMessage('uploadaborted');
         enableAllButtons();
+        uploadFinished();
     }
 
     /**
