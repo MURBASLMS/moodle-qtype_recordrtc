@@ -1075,7 +1075,19 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
 
         // Place it right after the record/stop button, i.e. right where the student is
         // already looking immediately after they stop recording.
-        button.parentElement.insertAdjacentElement('afterend', statusEl);
+        //
+        // Anchored to the button itself, not button.parentElement: the video/screen
+        // templates wrap the button in its own <span>, but the audio template does not -
+        // there, button.parentElement is the outer widget span itself, and inserting
+        // 'afterend' of that placed this element as a *sibling of the whole widget*,
+        // outside the subtree widget.querySelector() above searches. That meant this
+        // function could never find its own previously-created element on an audio
+        // widget, and created a brand new orphaned one on every single progress update -
+        // producing a growing pile of stale "Please wait..." messages at different
+        // percentages, audio-widgets only (matches exactly what was reported). Anchoring
+        // to the button itself always keeps the new element inside the widget's own
+        // subtree, regardless of how deeply the button happens to be nested.
+        button.insertAdjacentElement('afterend', statusEl);
         return statusEl;
     }
 
