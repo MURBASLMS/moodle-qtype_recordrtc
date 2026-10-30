@@ -55,3 +55,8 @@ body#page-question-type-recordrtc.path-question-type .form-group[data-groupname=
     color: #000;
     z-index: 1;
 }
+
+/* Prominent upload/save status banner, shown while a recording is being processed/uploaded. */
+.que.recordrtc .qtype_recordrtc-upload-status {
+    font-size: 0.95rem;
+}

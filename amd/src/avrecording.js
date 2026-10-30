@@ -188,6 +188,9 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
             errorMessage.remove();
         }
 
+        // Remove any upload status banner left over from a previous take.
+        hideUploadStatus();
+
         const videoElement = widget.querySelector('video');
         if (videoElement && videoElement.classList.contains('d-none')) {
             videoElement.classList.remove('d-none');
@@ -705,6 +708,7 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
      */
     async function uploadMediaToServer() {
         setButtonLabel('uploadpreparing');
+        showUploadStatus('uploadstatusinprogress', 0);
 
         if (widget.dataset.convertToMp3) {
             const mp3DataBlob = await convertOggToMp3(mediaElement.src);
@@ -832,7 +836,9 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
      * @param {number} total number to do in total.
      */
     async function setPreparingPercent(current, total) {
-        setButtonLabel('uploadpreparingpercent', Math.round(100 * current / total));
+        const percent = Math.round(100 * current / total);
+        setButtonLabel('uploadpreparingpercent', percent);
+        showUploadStatus('uploadstatusinprogress', percent);
         // Next like is a hack to ensure the screen acutally updates.
         await new Promise(resolve => requestAnimationFrame(resolve));
     }
@@ -883,9 +889,11 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
             // When request finished and successful.
             setButtonLabel('recordagainx');
             button.classList.remove('btn-outline-danger');
+            showUploadStatus('uploadstatuscomplete', null, 'success');
             enableAllButtons();
         } else if (uploadRequest.status === 404) {
             setPlaceholderMessage('uploadfailed404');
+            showUploadStatus('uploadfailed404', null, 'danger');
             enableAllButtons();
         }
     }
@@ -895,7 +903,9 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
      * @param {ProgressEvent} e
      */
     function handleUploadProgress(e) {
-        setButtonLabel('uploadprogress', Math.round(e.loaded / e.total * 100) + '%');
+        const percent = Math.round(e.loaded / e.total * 100);
+        setButtonLabel('uploadprogress', percent + '%');
+        showUploadStatus('uploadstatusinprogress', percent);
     }
 
     /**
@@ -903,6 +913,7 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
      */
     function handleUploadError() {
         setPlaceholderMessage('uploadfailed');
+        showUploadStatus('uploadfailed', null, 'danger');
         enableAllButtons();
     }
 
@@ -911,7 +922,87 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
      */
     function handleUploadAbort() {
         setPlaceholderMessage('uploadaborted');
+        showUploadStatus('uploadaborted', null, 'danger');
         enableAllButtons();
+    }
+
+    /**
+     * Lazily create (if needed) the upload status banner for this widget, and return it.
+     *
+     * This is a much more prominent, page-visible alternative/companion to the existing
+     * practice of only changing the text of the record/upload button, which is easy to
+     * miss, especially on a timed quiz page where attention is on the page navigation
+     * buttons, not this widget.
+     *
+     * @returns {HTMLElement} the status banner element.
+     */
+    function getOrCreateUploadStatus() {
+        let statusEl = widget.querySelector('.qtype_recordrtc-upload-status');
+        if (statusEl) {
+            return statusEl;
+        }
+
+        statusEl = document.createElement('div');
+        statusEl.className = 'qtype_recordrtc-upload-status alert mt-1 mb-2 hide';
+        // role=status + aria-live=polite so screen reader users also get this update
+        // without it being so disruptive (aria-live=assertive) that it interrupts typing.
+        statusEl.setAttribute('role', 'status');
+        statusEl.setAttribute('aria-live', 'polite');
+        statusEl.innerHTML =
+            '<strong class="qtype_recordrtc-upload-status-message"></strong>' +
+            '<div class="progress mt-1" style="height: 0.5rem;">' +
+                '<div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" ' +
+                    'style="width: 0%" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>' +
+            '</div>';
+
+        // Place it right after the record/stop button, i.e. right where the student is
+        // already looking immediately after they stop recording.
+        button.parentElement.insertAdjacentElement('afterend', statusEl);
+        return statusEl;
+    }
+
+    /**
+     * Show (or update) the upload status banner.
+     *
+     * @param {string} langString language string key (in qtype_recordrtc) for the message.
+     * @param {?number} percent 0-100, or null to hide the progress bar (e.g. on success/failure).
+     * @param {string} [severity] 'warning' (default, in progress), 'success' or 'danger'.
+     */
+    function showUploadStatus(langString, percent, severity = 'warning') {
+        const statusEl = getOrCreateUploadStatus();
+        statusEl.classList.remove('hide', 'alert-warning', 'alert-success', 'alert-danger');
+        statusEl.classList.add('alert-' + severity);
+
+        const message = statusEl.querySelector('.qtype_recordrtc-upload-status-message');
+        message.textContent = percent === null ?
+            M.util.get_string(langString, 'qtype_recordrtc') :
+            M.util.get_string(langString, 'qtype_recordrtc', percent);
+
+        const progressContainer = statusEl.querySelector('.progress');
+        if (percent === null) {
+            progressContainer.classList.add('hide');
+        } else {
+            progressContainer.classList.remove('hide');
+            const bar = progressContainer.querySelector('.progress-bar');
+            bar.style.width = percent + '%';
+            bar.setAttribute('aria-valuenow', percent);
+        }
+
+        // Successful completion is reassuring, so it can disappear on its own after a pause.
+        // Errors/warnings must not auto-hide: the student needs to notice and act (e.g. re-record).
+        if (severity === 'success') {
+            window.setTimeout(() => statusEl.classList.add('hide'), 5000);
+        }
+    }
+
+    /**
+     * Hide the upload status banner, if there is one.
+     */
+    function hideUploadStatus() {
+        const statusEl = widget.querySelector('.qtype_recordrtc-upload-status');
+        if (statusEl) {
+            statusEl.remove();
+        }
     }
 
     /**

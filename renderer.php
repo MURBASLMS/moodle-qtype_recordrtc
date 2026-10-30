@@ -229,6 +229,8 @@ class qtype_recordrtc_renderer extends qtype_renderer {
             'uploadpreparing',
             'uploadpreparingpercent',
             'uploadprogress',
+            'uploadstatusinprogress',
+            'uploadstatuscomplete',
         ];
     }
 
