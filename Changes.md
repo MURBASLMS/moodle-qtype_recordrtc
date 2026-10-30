@@ -1,5 +1,12 @@
 # Change log for the Record audio and video question type
 
+## Changes in 2.0+mu4 (MURBASLMS fork)
+* Fix confusing upload-status banner wording for audio questions: the MP3-conversion
+  phase and the actual network upload phase were both shown with the same message, so
+  the percentage visibly jumped backward from 100% down to near-0% right as the upload
+  started, reading like two conflicting messages. They now have distinct wording
+  ("being converted" vs "being saved") so the restart reads as two sequential steps.
+
 ## Changes in 2.0+mu1 (MURBASLMS fork)
 * Add a prominent, accessible upload/save status banner next to the record button while a
   recording is being encoded/uploaded, in addition to the existing button-label text. This is

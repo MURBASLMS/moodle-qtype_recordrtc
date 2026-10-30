@@ -708,7 +708,11 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
      */
     async function uploadMediaToServer() {
         setButtonLabel('uploadpreparing');
-        showUploadStatus('uploadstatusinprogress', 0);
+        // Audio recordings go through an extra MP3-conversion pass before the actual
+        // upload starts. Show a distinct message for that phase (handled by
+        // setPreparingPercent() below) so the percentage visibly restarting from ~0%
+        // once the real upload begins doesn't read as two conflicting messages.
+        showUploadStatus(widget.dataset.convertToMp3 ? 'uploadstatusconverting' : 'uploadstatusinprogress', 0);
 
         if (widget.dataset.convertToMp3) {
             const mp3DataBlob = await convertOggToMp3(mediaElement.src);
@@ -838,7 +842,7 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
     async function setPreparingPercent(current, total) {
         const percent = Math.round(100 * current / total);
         setButtonLabel('uploadpreparingpercent', percent);
-        showUploadStatus('uploadstatusinprogress', percent);
+        showUploadStatus('uploadstatusconverting', percent);
         // Next like is a hack to ensure the screen acutally updates.
         await new Promise(resolve => requestAnimationFrame(resolve));
     }

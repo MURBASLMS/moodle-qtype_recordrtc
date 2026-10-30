@@ -148,6 +148,7 @@ $string['uploadpreparing'] = 'Preparing upload ...';
 $string['uploadpreparingpercent'] = 'Preparing upload ({$a}%)';
 $string['uploadprogress'] = 'Uploading ({$a})';
 $string['uploadstatusinprogress'] = 'Please wait, your recording is still being saved ({$a}%). Do not click Next, Finish attempt, or leave this page until this message disappears.';
+$string['uploadstatusconverting'] = 'Please wait, your recording is being converted ({$a}%). Do not click Next, Finish attempt, or leave this page until this message disappears.';
 $string['uploadstatuscomplete'] = 'Your recording has been saved. You can safely continue.';
 $string['video'] = 'Single video';
 $string['videobitrate'] = 'Video bitrate';
