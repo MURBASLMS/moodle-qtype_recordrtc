@@ -1,5 +1,12 @@
 # Change log for the Record audio and video question type
 
+## Changes in 2.0+mu1 (MURBASLMS fork)
+* Add a prominent, accessible upload/save status banner next to the record button while a
+  recording is being encoded/uploaded, in addition to the existing button-label text. This is
+  a stopgap fix for students clicking "Next" in a Moodle Quiz before their recording has
+  finished saving, since the button-label-only feedback was easy to miss during a timed
+  assessment. See https://github.com/MURBASLMS/moodle-qtype_recordrtc.
+
 ## Changes in 2.0
 * This version is compatible with Moodle 5.0.
 * A new Behat test has been added to test the answer sheet report for Record RTC questions
