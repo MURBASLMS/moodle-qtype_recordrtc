@@ -82,12 +82,24 @@ abstract class recorder_base implements renderable, templatable {
         return str_replace('_', ' ', preg_replace('~\.[a-z0-9]*$~', '', $this->filename));
     }
 
+    /**
+     * Format the maximum recording duration as MM:SS for display in the widget header.
+     *
+     * @return string formatted time string, e.g. '01:30'.
+     */
+    public function get_formatted_max_duration(): string {
+        $mins = intdiv($this->maxrecordingduration, 60);
+        $secs = $this->maxrecordingduration % 60;
+        return sprintf('%02d:%02d', $mins, $secs);
+    }
+
     #[\Override]
     public function export_for_template(renderer_base $output): array {
         return [
             'filename' => $this->filename,
             'widgetname' => $this->get_widget_name(),
             'maxrecordingduration' => $this->maxrecordingduration,
+            'maxdurationformatted' => $this->get_formatted_max_duration(),
             'allowpausing' => $this->allowpausing,
             'hasrecording' => $this->recordingurl !== null,
             'recordingurl' => $this->recordingurl ? $this->recordingurl->out(false) : '',

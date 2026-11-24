@@ -17,10 +17,11 @@
 {{!
     @template qtype_recordrtc/screen_recorder
 
-    Video screen recorder widget.
+    Video screen recorder widget with guided 3-step (Record - Check - Save) card layout.
 
     Context variables required for this template:
     * maxrecordingduration: Length limit (in seconds) for the recording.
+    * maxdurationformatted: Formatted MM:SS length limit.
     * allowpausing: whether this question allows the recording to be paused.
     * hasrecording: boolean - whether there is already a recording.
     * recordingurl: the URL of that recording (empty string if none).
@@ -33,6 +34,7 @@
         "filename": "recording.webm",
         "widgetname": "recording",
         "maxrecordingduration": 30,
+        "maxdurationformatted": "00:30",
         "allowpausing": true,
         "hasrecording": false,
         "recordingurl": "http://example.com/moodle/draftfile.php?...",
@@ -41,36 +43,113 @@
         "candownload": true
     }
 }}
-<span class="qtype_recordrtc-screen-widget qtype_recordrtc-ratio-{{aspectratio}} d-flex flex-column mw-100"
-      style="width: {{width}}px" data-media-type="screen" data-widget-name="{{widgetname}}"
+<span class="qtype_recordrtc-screen-widget qtype_recordrtc-stepper-card qtype_recordrtc-ratio-{{aspectratio}} d-flex flex-column mw-100"
+      data-media-type="screen" data-widget-name="{{widgetname}}"
       data-error-message="{{#str}}err_compatibility, qtype_recordrtc{{/str}}"
       data-state="{{^hasrecording}}new{{/hasrecording}}{{#hasrecording}}recorded{{/hasrecording}}"
       data-max-recording-duration="{{maxrecordingduration}}" data-recording-filename="{{filename}}">
-    <span class="qtype_recordrtc-no-recording-placeholder mb-1 text-center{{#hasrecording}} hide{{/hasrecording}}">{{#str}}norecording, qtype_recordrtc{{/str}}</span>
-    <span class="qtype_recordrtc-media-player{{^hasrecording}} hide{{/hasrecording}}">
-        <video controls class="w-100 d-none"{{^candownload}} oncontextmenu="return false;" controlsList=" nodownload"{{/candownload}} data-source="{{recordingurl}}">
-        </video>
-    </span>
-    <span>
-        <button {{#hasrecording}}disabled {{/hasrecording}} type="button" class="qtype_recordrtc-main-button btn btn-secondary osep-smallbutton m-0 w-100">
-            {{! Seemingly unnecessary space inside the span is needed for screen-readers, and it must be a non-breaking space. }}
-            {{^hasrecording}}{{#str}}startsharescreenx, qtype_recordrtc, <span class="sr-only visually-hidden">&nbsp;{{widgetname}}</span>{{/str}}{{/hasrecording}}
-            {{#hasrecording}}{{#str}}recordagainx, qtype_recordrtc, <span class="sr-only visually-hidden">&nbsp;{{widgetname}}</span>{{/str}}{{/hasrecording}}
-        </button>
-    </span>
-    <span class="qtype_recordrtc-control-row w-100 hide">
-        <span class="qtype_recordrtc-time-left flex-grow-1 text-center position-relative">
-            {{> qtype_recordrtc/progress_bar }}
-        </span>
-        {{#allowpausing}}
-            <span class="qtype_recordrtc-pause-button hide">
-                <button type="button" data-pause="1" class="btn btn-secondary osep-smallbutton ms-1 me-0">
-                    {{#str}}pause, qtype_recordrtc{{/str}}
-                </button>
+
+    {{! Top 3-step header bar: 1 Record --- 2 Check --- 3 Save }}
+    <span class="qtype_recordrtc-stepper-header d-flex justify-content-between align-items-center flex-wrap">
+        <span class="qtype_recordrtc-steps d-flex align-items-center">
+            <span class="qtype_recordrtc-step qtype_recordrtc-step-1">
+                <span class="qtype_recordrtc-step-num">1</span>
+                <span class="qtype_recordrtc-step-label">{{#str}}step1record, qtype_recordrtc{{/str}}</span>
             </span>
-        {{/allowpausing}}
-        <button type="button" class="qtype_recordrtc-stop-button btn btn-secondary osep-smallbutton ms-1 me-0">
-            {{#str}}stoprecording, qtype_recordrtc{{/str}}
-        </button>
+            <span class="qtype_recordrtc-step-divider"></span>
+            <span class="qtype_recordrtc-step qtype_recordrtc-step-2">
+                <span class="qtype_recordrtc-step-num">2</span>
+                <span class="qtype_recordrtc-step-label">{{#str}}step2check, qtype_recordrtc{{/str}}</span>
+            </span>
+            <span class="qtype_recordrtc-step-divider"></span>
+            <span class="qtype_recordrtc-step qtype_recordrtc-step-3">
+                <span class="qtype_recordrtc-step-num">3</span>
+                <span class="qtype_recordrtc-step-label">{{#str}}step3save, qtype_recordrtc{{/str}}</span>
+            </span>
+        </span>
+        <span class="qtype_recordrtc-maxduration-badge">
+            {{#str}}maxdurationlabel, qtype_recordrtc, {{maxdurationformatted}}{{/str}}
+        </span>
+    </span>
+
+    <span class="qtype_recordrtc-card-body d-flex flex-wrap align-items-center">
+        <span class="qtype_recordrtc-media-column position-relative">
+            <span class="qtype_recordrtc-no-recording-placeholder d-flex flex-column justify-content-center align-items-center text-center{{#hasrecording}} hide{{/hasrecording}}">
+                <i class="fa fa-desktop fa-2x mb-1" aria-hidden="true"></i>
+                <span class="qtype_recordrtc-placeholder-text small">{{#str}}norecording, qtype_recordrtc{{/str}}</span>
+            </span>
+            <span class="qtype_recordrtc-media-player position-relative{{^hasrecording}} hide{{/hasrecording}}">
+                <span class="qtype_recordrtc-rec-badge hide" aria-hidden="true">
+                    <span class="qtype_recordrtc-rec-dot"></span> {{#str}}recordingbadge, qtype_recordrtc{{/str}}
+                </span>
+                <video controls class="w-100 d-none"{{^candownload}} oncontextmenu="return false;" controlsList=" nodownload"{{/candownload}} data-source="{{recordingurl}}">
+                </video>
+            </span>
+        </span>
+
+        <span class="qtype_recordrtc-action-column flex-grow-1 d-flex flex-column justify-content-center">
+            <span class="qtype_recordrtc-waiting-panel hide align-items-center">
+                <span class="spinner-border text-primary me-3" role="status" aria-hidden="true"></span>
+                <span class="d-flex flex-column">
+                    <strong>{{#str}}waitingforpermissions, qtype_recordrtc{{/str}}</strong>
+                    <span class="text-muted small">{{#str}}waitingforpermissions_hint, qtype_recordrtc{{/str}}</span>
+                </span>
+            </span>
+
+            <span class="qtype_recordrtc-ready-panel{{^hasrecording}} hide{{/hasrecording}} mb-2">
+                <span class="d-flex align-items-start">
+                    <span class="qtype_recordrtc-ready-check me-2" aria-hidden="true">&#10003;</span>
+                    <span class="d-flex flex-column">
+                        <strong>{{#str}}recordingready, qtype_recordrtc{{/str}}</strong>
+                        <span class="text-muted small">{{#str}}recordingready_hint, qtype_recordrtc{{/str}}</span>
+                    </span>
+                </span>
+            </span>
+
+            <span class="qtype_recordrtc-start-row d-flex align-items-center">
+                <button {{#hasrecording}}disabled {{/hasrecording}} type="button" class="qtype_recordrtc-main-button btn {{^hasrecording}}btn-danger qtype_recordrtc-record-cta{{/hasrecording}}{{#hasrecording}}btn-outline-secondary{{/hasrecording}} osep-smallbutton m-0">
+                    {{! Seemingly unnecessary space inside the span is needed for screen-readers, and it must be a non-breaking space. }}
+                    {{^hasrecording}}{{#str}}startsharescreenx, qtype_recordrtc, <span class="sr-only visually-hidden">&nbsp;{{widgetname}}</span>{{/str}}{{/hasrecording}}
+                    {{#hasrecording}}{{#str}}recordagainx, qtype_recordrtc, <span class="sr-only visually-hidden">&nbsp;{{widgetname}}</span>{{/str}}{{/hasrecording}}
+                </button>
+                <span class="qtype_recordrtc-start-hint ms-3{{^hasrecording}} d-flex flex-column{{/hasrecording}}{{#hasrecording}} hide{{/hasrecording}}">
+                    <span class="text-muted small">{{#str}}startscreenrecordinghint, qtype_recordrtc{{/str}}</span>
+                </span>
+            </span>
+
+            <span class="qtype_recordrtc-replace-confirm hide mt-2 p-2 rounded">
+                <strong class="d-block mb-2 small">{{#str}}replaceconfirm_title, qtype_recordrtc{{/str}}</strong>
+                <span class="d-flex gap-2">
+                    <button type="button" class="qtype_recordrtc-replace-yes btn btn-primary btn-sm me-2">
+                        {{#str}}replaceconfirm_yes, qtype_recordrtc{{/str}}
+                    </button>
+                    <button type="button" class="qtype_recordrtc-replace-no btn btn-secondary btn-sm">
+                        {{#str}}replaceconfirm_no, qtype_recordrtc{{/str}}
+                    </button>
+                </span>
+            </span>
+
+            <span class="qtype_recordrtc-control-row w-100 hide flex-column">
+                <span class="d-flex align-items-center mb-2 flex-wrap gap-2">
+                    <button type="button" class="qtype_recordrtc-stop-button btn btn-danger me-2">
+                        <i class="fa fa-stop me-1" aria-hidden="true"></i> {{#str}}stoprecording, qtype_recordrtc{{/str}}
+                    </button>
+                    <span class="qtype_recordrtc-live-status me-3">
+                        <span class="qtype_recordrtc-status-dot"></span>
+                        <span class="qtype_recordrtc-status-text">{{#str}}recordingstatus, qtype_recordrtc{{/str}}</span>
+                    </span>
+                    {{#allowpausing}}
+                        <span class="qtype_recordrtc-pause-button hide ms-auto">
+                            <button type="button" data-pause="1" class="btn btn-secondary osep-smallbutton m-0">
+                                {{#str}}pause, qtype_recordrtc{{/str}}
+                            </button>
+                        </span>
+                    {{/allowpausing}}
+                </span>
+                <span class="qtype_recordrtc-time-left w-100 text-center position-relative">
+                    {{> qtype_recordrtc/progress_bar }}
+                </span>
+            </span>
+        </span>
     </span>
 </span>

@@ -232,6 +232,20 @@ class qtype_recordrtc_renderer extends qtype_renderer {
             'uploadstatusinprogress',
             'uploadstatusconverting',
             'uploadstatuscomplete',
+            'step1record',
+            'step2check',
+            'step3save',
+            'waitingforpermissions',
+            'waitingforpermissions_hint',
+            'recordingstatus',
+            'pausedstatus',
+            'preparingrecording',
+            'recordingready',
+            'recordingready_hint',
+            'replaceconfirm_title',
+            'replaceconfirm_yes',
+            'replaceconfirm_no',
+            'getready',
         ];
     }
 

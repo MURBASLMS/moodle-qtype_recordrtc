@@ -235,9 +235,18 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
     const button = widget.querySelector('button.qtype_recordrtc-main-button');
     const pauseButton = widget.querySelector('.qtype_recordrtc-pause-button button');
     const controlRow = widget.querySelector('.qtype_recordrtc-control-row');
+    const startRow = widget.querySelector('.qtype_recordrtc-start-row');
+    const startHint = widget.querySelector('.qtype_recordrtc-start-hint');
+    const waitingPanel = widget.querySelector('.qtype_recordrtc-waiting-panel');
+    const readyPanel = widget.querySelector('.qtype_recordrtc-ready-panel');
+    const replaceConfirmPanel = widget.querySelector('.qtype_recordrtc-replace-confirm');
+    const recBadge = widget.querySelector('.qtype_recordrtc-rec-badge');
+    const countdownOverlay = widget.querySelector('.qtype_recordrtc-countdown-overlay');
+    const liveStatusText = widget.querySelector('.qtype_recordrtc-status-text');
     const mediaElement = widget.querySelector('.qtype_recordrtc-media-player ' +
         (mediaSettings.name === 'screen' ? 'video' : mediaSettings.name));
     const noMediaPlaceholder = widget.querySelector('.qtype_recordrtc-no-recording-placeholder');
+    const placeholderText = widget.querySelector('.qtype_recordrtc-placeholder-text') || noMediaPlaceholder;
     const timeDisplay = widget.querySelector('.qtype_recordrtc-time-left');
     const progressBar = widget.querySelector('.qtype_recordrtc-time-left .qtype_recordrtc-timer-front');
     const backTimeEnd = widget.querySelector('.qtype_recordrtc-time-left .qtype_recordrtc-timer-back span.timer-end');
@@ -245,11 +254,16 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
     const frontTimeEnd = widget.querySelector('.qtype_recordrtc-time-left .qtype_recordrtc-timer-front span.timer-end');
     const fronttimeStart = widget.querySelector('.qtype_recordrtc-time-left .qtype_recordrtc-timer-front span.timer-start');
 
+    /**
+     * @type {number} intervalID for the 3-2-1 pre-recording visual countdown on video.
+     */
+    let preRecordCountdownTimer = 0;
+
     widget.addEventListener('click', handleButtonClick);
     this.uploadMediaToServer = uploadMediaToServer; // Make this method available.
 
     /**
-     * Handles clicks on the start/stop and pause buttons.
+     * Handles clicks on the start/stop, pause, and replace-confirmation buttons.
      *
      * @param {Event} e
      */
@@ -261,10 +275,22 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
         e.preventDefault();
         switch (widget.dataset.state) {
             case 'new':
-            case 'recorded':
                 startRecording();
                 break;
+            case 'recorded':
+                if (clickedButton.classList.contains('qtype_recordrtc-replace-yes')) {
+                    replaceConfirmPanel?.classList.add('hide');
+                    startRecording();
+                } else if (clickedButton.classList.contains('qtype_recordrtc-replace-no')) {
+                    replaceConfirmPanel?.classList.add('hide');
+                } else if (clickedButton === button && replaceConfirmPanel) {
+                    replaceConfirmPanel.classList.remove('hide');
+                } else {
+                    startRecording();
+                }
+                break;
             case 'starting':
+                clearPreRecordCountdown();
                 startSaving();
                 break;
             case 'recording':
@@ -285,6 +311,20 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
     }
 
     /**
+     * Clear any active 3-2-1 pre-recording countdown timer and hide its overlay.
+     */
+    function clearPreRecordCountdown() {
+        if (preRecordCountdownTimer !== 0) {
+            clearInterval(preRecordCountdownTimer);
+            preRecordCountdownTimer = 0;
+        }
+        if (countdownOverlay) {
+            countdownOverlay.classList.add('hide');
+            countdownOverlay.textContent = '';
+        }
+    }
+
+    /**
      * Start recording (because the button was clicked).
      */
     function startRecording() {
@@ -295,8 +335,20 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
             errorMessage.remove();
         }
 
-        // Remove any upload status banner left over from a previous take.
+        // Remove any upload status banner and replace confirmation left over from a previous take.
         hideUploadStatus();
+        replaceConfirmPanel?.classList.add('hide');
+        readyPanel?.classList.add('hide');
+        startHint?.classList.add('hide');
+
+        // Show the 'Waiting for camera/microphone permissions' indicator while getUserMedia runs.
+        if (waitingPanel) {
+            waitingPanel.classList.remove('hide');
+            waitingPanel.classList.add('d-flex');
+        }
+        if (startRow && isVideoRecording()) {
+            startRow.classList.add('hide');
+        }
 
         const videoElement = widget.querySelector('video');
         if (videoElement && videoElement.classList.contains('d-none')) {
@@ -318,7 +370,7 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
         pauseButton?.parentElement.classList.remove('hide');
 
         // Change look of recording button.
-        button.classList.remove('btn-outline-danger');
+        button.classList.remove('btn-outline-danger', 'btn-outline-secondary');
         button.classList.add('btn-danger');
 
         // Disable other question buttons when current widget stared recording.
@@ -404,6 +456,11 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
     function handleCaptureStarting(stream) {
         mediaStream = stream;
 
+        if (waitingPanel) {
+            waitingPanel.classList.add('hide');
+            waitingPanel.classList.remove('d-flex');
+        }
+
         // Setup the UI for during recording.
         mediaElement.srcObject = stream;
         mediaElement.muted = true;
@@ -418,11 +475,28 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
                 mediaElement.play();
                 mediaElement.controls = false;
 
+                // Show a brief 3-2-1 visual countdown on the camera feed, then auto-start recording
+                // so students never get stranded in a preview-only state thinking they are already recording.
                 widget.dataset.state = 'starting';
-                setButtonLabel('startrecording');
-                button.disabled = false;
-                button.focus();
                 widget.querySelector('.qtype_recordrtc-stop-button').disabled = false;
+                if (countdownOverlay) {
+                    let count = 3;
+                    countdownOverlay.textContent = String(count);
+                    countdownOverlay.classList.remove('hide');
+                    preRecordCountdownTimer = window.setInterval(() => {
+                        count--;
+                        if (count > 0) {
+                            countdownOverlay.textContent = String(count);
+                        } else {
+                            clearPreRecordCountdown();
+                            if (widget.dataset.state === 'starting') {
+                                startSaving();
+                            }
+                        }
+                    }, 900);
+                } else {
+                    startSaving();
+                }
                 break;
 
             case 'screen':
@@ -441,9 +515,11 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
 
     /**
      * For recording types which show the media during recording,
-     * this starts the loop-back display, but does not start recording it yet.
+     * this starts the MediaRecorder capture and recording timer.
      */
     function startSaving() {
+        clearPreRecordCountdown();
+
         // Initialize MediaRecorder events and start recording.
         mediaRecorder = new MediaRecorder(mediaStream, getRecordingOptions());
 
@@ -453,13 +529,17 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
         mediaRecorder.start(1000); // Capture in one-second chunks. Firefox requires that.
 
         widget.dataset.state = 'recording';
+        recBadge?.classList.remove('hide');
+        if (liveStatusText) {
+            liveStatusText.innerText = M.util.get_string('recordingstatus', 'qtype_recordrtc');
+        }
         // Initialize and start the animation.
         initProgressBarAnimation();
         progressBarAnimation.play();
         setButtonLabel('stoprecording');
         startCountdownTimer();
         if (isVideoRecording()) {
-            button.parentElement.classList.add('hide');
+            startRow?.classList.add('hide');
             controlRow.classList.remove('hide');
             controlRow.classList.add('d-flex');
             timeDisplay.classList.remove('hide');
@@ -470,10 +550,12 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
      * Callback that is called by the user clicking Stop screen sharing on the browser.
      */
     function handleStopSharing() {
+        clearPreRecordCountdown();
         if (widget.dataset.state === 'starting') {
             widget.dataset.state = 'new';
             mediaElement.parentElement.classList.add('hide');
             noMediaPlaceholder.classList.remove('hide');
+            startRow?.classList.remove('hide');
             setButtonLabel('startsharescreen');
             button.blur();
         } else {
@@ -544,6 +626,10 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
         setPauseButtonLabel('resume');
         mediaRecorder.pause();
         widget.dataset.state = 'paused';
+        recBadge?.classList.add('hide');
+        if (liveStatusText) {
+            liveStatusText.innerText = M.util.get_string('pausedstatus', 'qtype_recordrtc');
+        }
         // Pause animate.
         toggleProgressbarState();
     }
@@ -555,6 +641,10 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
         // Stop the count-down timer.
         resumeCountdownTimer();
         widget.dataset.state = 'recording';
+        recBadge?.classList.remove('hide');
+        if (liveStatusText) {
+            liveStatusText.innerText = M.util.get_string('recordingstatus', 'qtype_recordrtc');
+        }
         setPauseButtonLabel('pause');
         mediaRecorder.resume();
         // Resume animate.
@@ -565,6 +655,9 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
      * Start recording (because the button was clicked or because we have reached a limit).
      */
     function stopRecording() {
+        clearPreRecordCountdown();
+        recBadge?.classList.add('hide');
+
         // Disable the button while things change.
         button.disabled = true;
 
@@ -572,8 +665,8 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
         stopCountdownTimer();
 
         // Update the button.
-        button.classList.remove('btn-danger');
-        button.classList.add('btn-outline-danger');
+        button.classList.remove('btn-danger', 'qtype_recordrtc-record-cta');
+        button.classList.add('btn-outline-secondary');
         if (pauseButton) {
             setPauseButtonLabel('pause');
             pauseButton.parentElement.classList.add('hide');
@@ -619,16 +712,16 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
                 timeDisplay.classList.add('hide');
 
             } else {
-                button.parentElement.classList.remove('hide');
+                startRow?.classList.remove('hide');
                 controlRow.classList.add('hide');
                 controlRow.classList.remove('d-flex');
             }
 
             // Ensure the button while things change.
             button.disabled = true;
-            button.classList.remove('btn-danger');
-            button.classList.add('btn-outline-danger');
-            widget.dataset.state = 'recorded';
+            button.classList.remove('btn-danger', 'qtype_recordrtc-record-cta');
+            button.classList.add('btn-outline-secondary');
+            widget.dataset.state = 'saving';
 
             if (chunks.length > 0) {
                 owner.notifyRecordingComplete(recorder);
@@ -697,6 +790,14 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
     function handleCaptureFailed(error) {
         Log.debug('Audio/video/screen question: error received');
         Log.debug(error);
+
+        clearPreRecordCountdown();
+        if (waitingPanel) {
+            waitingPanel.classList.add('hide');
+            waitingPanel.classList.remove('d-flex');
+        }
+        startRow?.classList.remove('hide');
+        recBadge?.classList.add('hide');
 
         setPlaceholderMessage('recordingfailed');
         setButtonLabel('recordagainx');
@@ -1001,12 +1102,16 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
 
         if (uploadRequest.status === 200) {
             // When request finished and successful.
+            widget.dataset.state = 'recorded';
+            readyPanel?.classList.remove('hide');
             setButtonLabel('recordagainx');
-            button.classList.remove('btn-outline-danger');
+            button.classList.remove('btn-outline-danger', 'btn-danger', 'qtype_recordrtc-record-cta');
+            button.classList.add('btn-outline-secondary');
             showUploadStatus('uploadstatuscomplete', null, 'success');
             enableAllButtons();
             uploadFinished();
         } else if (uploadRequest.status === 404) {
+            widget.dataset.state = 'new';
             setPlaceholderMessage('uploadfailed404');
             showUploadStatus('uploadfailed404', null, 'danger');
             enableAllButtons();
@@ -1028,6 +1133,7 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
      * Callback for when the upload fails with an error.
      */
     function handleUploadError() {
+        widget.dataset.state = 'new';
         setPlaceholderMessage('uploadfailed');
         showUploadStatus('uploadfailed', null, 'danger');
         enableAllButtons();
@@ -1038,6 +1144,7 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
      * Callback for when the upload fails with an error.
      */
     function handleUploadAbort() {
+        widget.dataset.state = 'new';
         setPlaceholderMessage('uploadaborted');
         showUploadStatus('uploadaborted', null, 'danger');
         enableAllButtons();
@@ -1087,7 +1194,10 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
         // percentages, audio-widgets only (matches exactly what was reported). Anchoring
         // to the button itself always keeps the new element inside the widget's own
         // subtree, regardless of how deeply the button happens to be nested.
-        button.insertAdjacentElement('afterend', statusEl);
+        // Place the banner right after the start-row (or the button itself if no wrapper exists)
+        // so it spans cleanly below the primary action row inside the widget subtree.
+        const anchorEl = startRow || button;
+        anchorEl.insertAdjacentElement('afterend', statusEl);
         return statusEl;
     }
 
@@ -1164,7 +1274,7 @@ function Recorder(widget, mediaSettings, owner, uploadInfo) {
      * @param {string} langString
      */
     function setPlaceholderMessage(langString) {
-        noMediaPlaceholder.textContent = M.util.get_string(langString, 'qtype_recordrtc');
+        placeholderText.textContent = M.util.get_string(langString, 'qtype_recordrtc');
         mediaElement.parentElement.classList.add('hide');
         noMediaPlaceholder.classList.remove('hide');
     }

@@ -17,10 +17,11 @@
 {{!
     @template qtype_recordrtc/audio_recorder
 
-    Audio recorder widget.
+    Audio recorder widget with guided 3-step (Record - Check - Save) card layout.
 
     Context variables required for this template:
     * maxrecordingduration: Length limit (in seconds) for the recording.
+    * maxdurationformatted: Formatted MM:SS length limit.
     * allowpausing: whether this question allows the recording to be paused.
     * hasrecording: boolean - whether there is already a recording.
     * recordingurl: the URL of that recording (empty string if none).
@@ -31,39 +32,109 @@
         "filename": "recording.ogg",
         "widgetname": "recording",
         "maxrecordingduration": 30,
+        "maxdurationformatted": "00:30",
         "allowpausing": true,
         "hasrecording": false,
         "recordingurl": "http://example.com/moodle/draftfile.php?...",
         "candownload": true
     }
 }}
-<span class="qtype_recordrtc-audio-widget d-inline-flex mw-100 my-1"
+<span class="qtype_recordrtc-audio-widget qtype_recordrtc-stepper-card d-flex flex-column mw-100 my-1"
       data-media-type="audio"
       data-widget-name="{{widgetname}}"
       data-state="{{^hasrecording}}new{{/hasrecording}}{{#hasrecording}}recorded{{/hasrecording}}"
       data-max-recording-duration="{{maxrecordingduration}}"
       data-recording-filename="{{filename}}"
-      data-convert-to-mp3="1"
-    >
-    <span class="qtype_recordrtc-no-recording-placeholder flex-grow-1 text-center{{#hasrecording}} hide{{/hasrecording}}">{{#str}}norecording, qtype_recordrtc{{/str}}</span>
-    <span class="qtype_recordrtc-time-left flex-grow-1 text-center hide position-relative">
-        {{> qtype_recordrtc/progress_bar }}
-    </span>
-    <span class="qtype_recordrtc-media-player flex-grow-1{{^hasrecording}} hide{{/hasrecording}}">
-        <audio controls class="w-100, mw-100"{{^candownload}} oncontextmenu="return false;" controlsList=" nodownload"{{/candownload}}>
-            <source src="{{recordingurl}}">
-        </audio>
-    </span>
-    {{#allowpausing}}
-        <span class="qtype_recordrtc-pause-button hide">
-            <button type="button" data-pause="1" class="btn btn-secondary osep-smallbutton ms-1 me-0">
-                {{#str}}pause, qtype_recordrtc{{/str}}
-            </button>
+      data-convert-to-mp3="1">
+
+    {{! Top 3-step header bar: 1 Record --- 2 Check --- 3 Save }}
+    <span class="qtype_recordrtc-stepper-header d-flex justify-content-between align-items-center flex-wrap">
+        <span class="qtype_recordrtc-steps d-flex align-items-center">
+            <span class="qtype_recordrtc-step qtype_recordrtc-step-1">
+                <span class="qtype_recordrtc-step-num">1</span>
+                <span class="qtype_recordrtc-step-label">{{#str}}step1record, qtype_recordrtc{{/str}}</span>
+            </span>
+            <span class="qtype_recordrtc-step-divider"></span>
+            <span class="qtype_recordrtc-step qtype_recordrtc-step-2">
+                <span class="qtype_recordrtc-step-num">2</span>
+                <span class="qtype_recordrtc-step-label">{{#str}}step2check, qtype_recordrtc{{/str}}</span>
+            </span>
+            <span class="qtype_recordrtc-step-divider"></span>
+            <span class="qtype_recordrtc-step qtype_recordrtc-step-3">
+                <span class="qtype_recordrtc-step-num">3</span>
+                <span class="qtype_recordrtc-step-label">{{#str}}step3save, qtype_recordrtc{{/str}}</span>
+            </span>
         </span>
-    {{/allowpausing}}
-    <button type="button" class="qtype_recordrtc-main-button btn btn-secondary osep-smallbutton ms-1 me-0 text-nowrap">
-        {{! Seemingly unnecessary space inside the span is needed for screen-readers, and it must be a non-breaking space. }}
-        {{^hasrecording}}{{#str}}startrecordingx, qtype_recordrtc, <span class="sr-only visually-hidden">&nbsp;{{widgetname}}</span>{{/str}}{{/hasrecording}}
-        {{#hasrecording}}{{#str}}recordagainx, qtype_recordrtc, <span class="sr-only visually-hidden">&nbsp;{{widgetname}}</span>{{/str}}{{/hasrecording}}
-    </button>
+        <span class="qtype_recordrtc-maxduration-badge">
+            {{#str}}maxdurationlabel, qtype_recordrtc, {{maxdurationformatted}}{{/str}}
+        </span>
+    </span>
+
+    <span class="qtype_recordrtc-card-body d-flex flex-column">
+        <span class="qtype_recordrtc-no-recording-placeholder d-flex align-items-center justify-content-center p-2 mb-2 rounded{{#hasrecording}} hide{{/hasrecording}}">
+            <i class="fa fa-microphone me-2" aria-hidden="true"></i>
+            <span class="qtype_recordrtc-placeholder-text small">{{#str}}norecording, qtype_recordrtc{{/str}}</span>
+        </span>
+
+        {{! Waiting for browser microphone permissions }}
+        <span class="qtype_recordrtc-waiting-panel hide align-items-center mb-2">
+            <span class="spinner-border spinner-border-sm text-primary me-2" role="status" aria-hidden="true"></span>
+            <span class="d-flex flex-column">
+                <strong class="small">{{#str}}waitingforpermissions, qtype_recordrtc{{/str}}</strong>
+                <span class="text-muted small">{{#str}}waitingforpermissions_hint, qtype_recordrtc{{/str}}</span>
+            </span>
+        </span>
+
+        {{! Ready / Recorded status headline }}
+        <span class="qtype_recordrtc-ready-panel{{^hasrecording}} hide{{/hasrecording}} mb-2">
+            <span class="d-flex align-items-start">
+                <span class="qtype_recordrtc-ready-check me-2" aria-hidden="true">&#10003;</span>
+                <span class="d-flex flex-column">
+                    <strong>{{#str}}recordingready, qtype_recordrtc{{/str}}</strong>
+                    <span class="text-muted small">{{#str}}recordingready_hint, qtype_recordrtc{{/str}}</span>
+                </span>
+            </span>
+        </span>
+
+        <span class="qtype_recordrtc-media-player mb-2{{^hasrecording}} hide{{/hasrecording}}">
+            <audio controls class="w-100 mw-100"{{^candownload}} oncontextmenu="return false;" controlsList=" nodownload"{{/candownload}}>
+                <source src="{{recordingurl}}">
+            </audio>
+        </span>
+
+        <span class="qtype_recordrtc-time-left w-100 text-center hide position-relative mb-2">
+            {{> qtype_recordrtc/progress_bar }}
+        </span>
+
+        <span class="qtype_recordrtc-start-row d-flex align-items-center flex-wrap gap-2">
+            {{#allowpausing}}
+                <span class="qtype_recordrtc-pause-button hide me-2">
+                    <button type="button" data-pause="1" class="btn btn-secondary osep-smallbutton m-0">
+                        {{#str}}pause, qtype_recordrtc{{/str}}
+                    </button>
+                </span>
+            {{/allowpausing}}
+            <button type="button" class="qtype_recordrtc-main-button btn {{^hasrecording}}btn-danger qtype_recordrtc-record-cta{{/hasrecording}}{{#hasrecording}}btn-outline-secondary{{/hasrecording}} osep-smallbutton m-0 text-nowrap">
+                {{! Seemingly unnecessary space inside the span is needed for screen-readers, and it must be a non-breaking space. }}
+                {{^hasrecording}}{{#str}}startrecordingx, qtype_recordrtc, <span class="sr-only visually-hidden">&nbsp;{{widgetname}}</span>{{/str}}{{/hasrecording}}
+                {{#hasrecording}}{{#str}}recordagainx, qtype_recordrtc, <span class="sr-only visually-hidden">&nbsp;{{widgetname}}</span>{{/str}}{{/hasrecording}}
+            </button>
+            <span class="qtype_recordrtc-start-hint ms-2{{^hasrecording}} d-inline{{/hasrecording}}{{#hasrecording}} hide{{/hasrecording}}">
+                <span class="text-muted small">{{#str}}startaudiorecordinghint, qtype_recordrtc{{/str}}</span>
+            </span>
+        </span>
+
+        {{! Safe confirmation prompt before overwriting an existing recording }}
+        <span class="qtype_recordrtc-replace-confirm hide mt-2 p-2 rounded">
+            <strong class="d-block mb-2 small">{{#str}}replaceconfirm_title, qtype_recordrtc{{/str}}</strong>
+            <span class="d-flex gap-2">
+                <button type="button" class="qtype_recordrtc-replace-yes btn btn-primary btn-sm me-2">
+                    {{#str}}replaceconfirm_yes, qtype_recordrtc{{/str}}
+                </button>
+                <button type="button" class="qtype_recordrtc-replace-no btn btn-secondary btn-sm">
+                    {{#str}}replaceconfirm_no, qtype_recordrtc{{/str}}
+                </button>
+            </span>
+        </span>
+    </span>
 </span>

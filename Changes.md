@@ -1,5 +1,16 @@
 # Change log for the Record audio and video question type
 
+## Changes in 2.0+mu8 (guided-stepper-ux, MURBASLMS fork)
+* Add a guided 3-step (`1 Record — 2 Check — 3 Save`) card layout with maximum duration
+  header badge across video, audio, and screen recording widgets.
+* Streamline video recording initiation into a single-step flow: clicking `Start recording`
+  requests browser camera/microphone permissions with an explicit waiting indicator, displays
+  a 3-2-1 visual countdown overlay on the camera feed, and automatically begins recording
+  with an active `REC` badge (preventing students from speaking during an unrecorded camera
+  preview).
+* Add a safe inline confirmation prompt (`Replace it with a new recording? [Replace] [Keep it]`)
+  before overwriting an already-saved recording.
+
 ## Changes in 2.0+mu7 (combined, MURBASLMS fork)
 * Combines mu1 (upload status banner), mu2 (block quiz navigation during upload), mu4
   (audio converting-phase wording fix), and mu6 (audio banner duplicate-element fix) for
